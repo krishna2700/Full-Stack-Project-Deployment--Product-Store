@@ -2,7 +2,6 @@
 node_modules/
 
 # Environment variables
-.env
 
 # Lock file
 package-lock.json
@@ -25,3 +24,4 @@ Thumbs.db
 # IDE settings
 .vscode/
 .idea/
+config.bat
