@@ -12,6 +12,9 @@ import {
   listSavedReadmes,
   deleteReadmeById,
   deleteReadmes,
+  deleteReadmeFile,
+  deleteReadmeFilesBulk,
+  deleteAllReadmeFiles,
 } from "../controllers/readme.controller.js";
 
 const router = express.Router();
@@ -110,5 +113,24 @@ router.delete("/delete", deleteReadmes);
 // Deletes a single saved README entry by its auto-generated ID.
 // The ID is returned in the POST /generate response when save: true is passed.
 router.delete("/delete/:id", deleteReadmeById);
+
+// ── File-System DELETE Routes ──────────────────────────────────────────────────
+// These routes delete actual .md files saved to disk (not in-memory entries).
+
+// DELETE /api/readme/file/all
+// Deletes ALL README language files from disk.
+// Must be registered BEFORE /file/:language to avoid "all" being treated as :language.
+router.delete("/file/all", deleteAllReadmeFiles);
+
+// DELETE /api/readme/file/bulk
+// Deletes README files for multiple languages from disk.
+// Body: { languages: ["en", "es", "fr"] }
+router.delete("/file/bulk", deleteReadmeFilesBulk);
+
+// DELETE /api/readme/file/:language
+// Deletes a single README file for the given spoken language code from disk.
+// Example: DELETE /api/readme/file/es  →  removes README.es.md
+// Example: DELETE /api/readme/file/en  →  removes README.md
+router.delete("/file/:language", deleteReadmeFile);
 
 export default router;

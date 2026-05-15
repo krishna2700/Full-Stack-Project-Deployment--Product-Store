@@ -1,0 +1,25 @@
+{
+  "name": "readme-generator-api",
+  "version": "3.0.0",
+  "description": "Generate professional README files in 15 spoken languages via REST API",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "keywords": [
+    "readme",
+    "generator",
+    "api",
+    "multilingual",
+    "markdown",
+    "documentation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.18.2"
+  }
+}

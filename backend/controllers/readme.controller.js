@@ -1071,6 +1071,134 @@ export const deleteReadmes = (req, res) => {
   });
 };
 
+// ── File-System Delete Controllers ───────────────────────────────────────────
+// These controllers delete actual .md files saved on disk.
+// They are separate from the in-memory store delete controllers above.
+
+import fs from "fs";
+import path from "path";
+import { fileURLToPath } from "url";
+
+const __dirname_ctrl = path.dirname(fileURLToPath(import.meta.url));
+// Root of the project (two levels up from backend/controllers/)
+const PROJECT_ROOT = path.resolve(__dirname_ctrl, "../../");
+
+function readmeFilePath(langCode) {
+  const filename = langCode === "en" ? "README.md" : `README.${langCode}.md`;
+  return { filename, filePath: path.join(PROJECT_ROOT, filename) };
+}
+
+// DELETE /api/readme/file/:language
+// Deletes a single README.<lang>.md file from disk.
+export const deleteReadmeFile = (req, res) => {
+  const langCode = req.params.language.toLowerCase().trim();
+
+  if (!SPOKEN_LANGUAGES[langCode]) {
+    return res.status(404).json({
+      success: false,
+      error: `Spoken language code "${langCode}" is not supported.`,
+      supportedCodes: Object.keys(SPOKEN_LANGUAGES),
+    });
+  }
+
+  const { filename, filePath } = readmeFilePath(langCode);
+
+  if (!fs.existsSync(filePath)) {
+    return res.status(404).json({
+      success: false,
+      error: `README file "${filename}" does not exist on disk.`,
+      filename,
+      language: { code: langCode, name: SPOKEN_LANGUAGES[langCode].name },
+    });
+  }
+
+  fs.unlinkSync(filePath);
+  return res.json({
+    success: true,
+    message: `README file "${filename}" has been deleted from disk.`,
+    filename,
+    language: { code: langCode, name: SPOKEN_LANGUAGES[langCode].name },
+    deletedAt: new Date().toISOString(),
+  });
+};
+
+// DELETE /api/readme/file/bulk
+// Body: { languages: ["en", "es", "fr"] }
+// Deletes multiple README files from disk.
+export const deleteReadmeFilesBulk = (req, res) => {
+  const { languages } = req.body;
+
+  if (!Array.isArray(languages) || languages.length === 0) {
+    return res.status(400).json({
+      success: false,
+      error: '"languages" must be a non-empty array of language codes.',
+      example: { languages: ["en", "es", "fr"] },
+      supportedCodes: Object.keys(SPOKEN_LANGUAGES),
+    });
+  }
+
+  const deleted = [], notFound = [], unsupported = [];
+
+  for (const lang of languages) {
+    const code = lang.toLowerCase().trim();
+    if (!SPOKEN_LANGUAGES[code]) {
+      unsupported.push({ language: lang, error: `Unsupported code: "${lang}"` });
+      continue;
+    }
+    const { filename, filePath } = readmeFilePath(code);
+    if (!fs.existsSync(filePath)) {
+      notFound.push({ language: code, filename, error: "File not found on disk." });
+      continue;
+    }
+    fs.unlinkSync(filePath);
+    deleted.push({
+      language: { code, name: SPOKEN_LANGUAGES[code].name },
+      filename,
+      deletedAt: new Date().toISOString(),
+    });
+  }
+
+  return res.json({
+    success: true,
+    requested: languages.length,
+    deleted: deleted.length,
+    notFound: notFound.length,
+    unsupported: unsupported.length,
+    results: deleted,
+    ...(notFound.length && { notFoundFiles: notFound }),
+    ...(unsupported.length && { unsupportedLanguages: unsupported }),
+  });
+};
+
+// DELETE /api/readme/file/all
+// Deletes ALL README files (one per spoken language) from disk.
+export const deleteAllReadmeFiles = (req, res) => {
+  const deleted = [], notFound = [];
+
+  for (const code of Object.keys(SPOKEN_LANGUAGES)) {
+    const { filename, filePath } = readmeFilePath(code);
+    if (!fs.existsSync(filePath)) {
+      notFound.push({ language: code, filename });
+      continue;
+    }
+    fs.unlinkSync(filePath);
+    deleted.push({
+      language: { code, name: SPOKEN_LANGUAGES[code].name },
+      filename,
+      deletedAt: new Date().toISOString(),
+    });
+  }
+
+  return res.json({
+    success: true,
+    totalLanguages: Object.keys(SPOKEN_LANGUAGES).length,
+    deleted: deleted.length,
+    notFound: notFound.length,
+    results: deleted,
+    ...(notFound.length && { notFoundFiles: notFound }),
+  });
+};
+
 // GET /api/readme/generate/by-language/:progLang (convenience GET)
 export const generateReadmeByProgLangRaw = (req, res) => {
   const progKey = req.params.progLang.toLowerCase().trim();

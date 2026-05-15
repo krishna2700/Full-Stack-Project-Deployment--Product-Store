@@ -4,184 +4,345 @@ import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Directory where README files are stored (parent of this server file, i.e. /vercel/sandbox)
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const README_DIR = path.resolve(__dirname, "..");
-
 const app = express();
 app.use(cors());
 app.use(express.json());
 
-// ── Language Definitions (15 languages) ──────────────────────────────────────
-const LANGUAGES = {
-  en: { name: "English", direction: "ltr", s: { overview: "Overview", features: "Features", tech: "Tech Stack", install: "Installation", usage: "Usage", contrib: "Contributing", license: "License", contribText: "Contributions are welcome! Please open an issue or submit a pull request.", licenseText: (l) => `This project is licensed under the ${l} License.`, defaultDesc: "A brief description of what this project does.", defaultFeatures: ["Easy to use", "Well documented", "Highly configurable"] } },
-  es: { name: "Spanish (Español)", direction: "ltr", s: { overview: "Descripción general", features: "Características", tech: "Tecnologías", install: "Instalación", usage: "Uso", contrib: "Contribuciones", license: "Licencia", contribText: "¡Las contribuciones son bienvenidas! Por favor abre un issue o envía un pull request.", licenseText: (l) => `Este proyecto está licenciado bajo la Licencia ${l}.`, defaultDesc: "Una breve descripción del proyecto.", defaultFeatures: ["Fácil de usar", "Bien documentado", "Altamente configurable"] } },
-  fr: { name: "French (Français)", direction: "ltr", s: { overview: "Présentation", features: "Fonctionnalités", tech: "Technologies", install: "Installation", usage: "Utilisation", contrib: "Contributions", license: "Licence", contribText: "Les contributions sont les bienvenues ! Veuillez ouvrir une issue ou soumettre une pull request.", licenseText: (l) => `Ce projet est sous licence ${l}.`, defaultDesc: "Une brève description du projet.", defaultFeatures: ["Facile à utiliser", "Bien documenté", "Hautement configurable"] } },
-  de: { name: "German (Deutsch)", direction: "ltr", s: { overview: "Übersicht", features: "Funktionen", tech: "Technologien", install: "Installation", usage: "Verwendung", contrib: "Mitwirken", license: "Lizenz", contribText: "Beiträge sind willkommen! Bitte öffne ein Issue oder sende einen Pull Request.", licenseText: (l) => `Dieses Projekt steht unter der ${l}-Lizenz.`, defaultDesc: "Eine kurze Beschreibung des Projekts.", defaultFeatures: ["Einfach zu bedienen", "Gut dokumentiert", "Hochkonfigurierbar"] } },
-  zh: { name: "Chinese Simplified (中文)", direction: "ltr", s: { overview: "项目概述", features: "功能特性", tech: "技术栈", install: "安装", usage: "使用方法", contrib: "贡献", license: "许可证", contribText: "欢迎贡献！请提交 Issue 或 Pull Request。", licenseText: (l) => `本项目基于 ${l} 许可证开源。`, defaultDesc: "项目的简要描述。", defaultFeatures: ["易于使用", "文档完善", "高度可配置"] } },
-  ja: { name: "Japanese (日本語)", direction: "ltr", s: { overview: "概要", features: "機能", tech: "技術スタック", install: "インストール", usage: "使い方", contrib: "コントリビューション", license: "ライセンス", contribText: "コントリビューションを歓迎します！Issue を開くか Pull Request を送ってください。", licenseText: (l) => `このプロジェクトは ${l} ライセンスの下に公開されています。`, defaultDesc: "プロジェクトの簡単な説明。", defaultFeatures: ["使いやすい", "ドキュメントが充実", "高い設定可能性"] } },
-  pt: { name: "Portuguese (Português)", direction: "ltr", s: { overview: "Visão Geral", features: "Funcionalidades", tech: "Tecnologias", install: "Instalação", usage: "Uso", contrib: "Contribuições", license: "Licença", contribText: "Contribuições são bem-vindas! Abra uma issue ou envie um pull request.", licenseText: (l) => `Este projeto está licenciado sob a Licença ${l}.`, defaultDesc: "Uma breve descrição do projeto.", defaultFeatures: ["Fácil de usar", "Bem documentado", "Altamente configurável"] } },
-  hi: { name: "Hindi (हिन्दी)", direction: "ltr", s: { overview: "अवलोकन", features: "विशेषताएं", tech: "तकनीकी स्टैक", install: "इंस्टॉलेशन", usage: "उपयोग", contrib: "योगदान", license: "लाइसेंस", contribText: "योगदान स्वागत योग्य है! कृपया एक issue खोलें या pull request सबमिट करें।", licenseText: (l) => `यह प्रोजेक्ट ${l} लाइसेंस के अंतर्गत है।`, defaultDesc: "प्रोजेक्ट का संक्षिप्त विवरण।", defaultFeatures: ["उपयोग में आसान", "अच्छी तरह प्रलेखित", "उच्च कॉन्फ़िगर करने योग्य"] } },
-  ar: { name: "Arabic (العربية)", direction: "rtl", s: { overview: "نظرة عامة", features: "الميزات", tech: "التقنيات المستخدمة", install: "التثبيت", usage: "الاستخدام", contrib: "المساهمة", license: "الرخصة", contribText: "المساهمات مرحب بها! يرجى فتح issue أو إرسال pull request.", licenseText: (l) => `هذا المشروع مرخص بموجب رخصة ${l}.`, defaultDesc: "وصف مختصر للمشروع.", defaultFeatures: ["سهل الاستخدام", "موثق جيداً", "قابل للتهيئة بشكل كبير"] } },
-  ru: { name: "Russian (Русский)", direction: "ltr", s: { overview: "Обзор", features: "Возможности", tech: "Технологии", install: "Установка", usage: "Использование", contrib: "Участие в разработке", license: "Лицензия", contribText: "Вклад приветствуется! Пожалуйста, откройте issue или отправьте pull request.", licenseText: (l) => `Этот проект распространяется под лицензией ${l}.`, defaultDesc: "Краткое описание проекта.", defaultFeatures: ["Простота использования", "Хорошая документация", "Высокая настраиваемость"] } },
-  ko: { name: "Korean (한국어)", direction: "ltr", s: { overview: "개요", features: "기능", tech: "기술 스택", install: "설치", usage: "사용법", contrib: "기여", license: "라이선스", contribText: "기여를 환영합니다! Issue를 열거나 Pull Request를 제출해 주세요.", licenseText: (l) => `이 프로젝트는 ${l} 라이선스에 따라 배포됩니다.`, defaultDesc: "이 프로젝트에 대한 간략한 설명입니다.", defaultFeatures: ["사용하기 쉬운", "문서화 잘 됨", "고도로 구성 가능"] } },
-  it: { name: "Italian (Italiano)", direction: "ltr", s: { overview: "Panoramica", features: "Funzionalità", tech: "Tecnologie Utilizzate", install: "Installazione", usage: "Utilizzo", contrib: "Contributi", license: "Licenza", contribText: "I contributi sono benvenuti! Apri un issue o invia una pull request.", licenseText: (l) => `Questo progetto è distribuito con la Licenza ${l}.`, defaultDesc: "Una breve descrizione del progetto.", defaultFeatures: ["Facile da usare", "Ben documentato", "Altamente configurabile"] } },
-  nl: { name: "Dutch (Nederlands)", direction: "ltr", s: { overview: "Overzicht", features: "Functies", tech: "Gebruikte Technologieën", install: "Installatie", usage: "Gebruik", contrib: "Bijdragen", license: "Licentie", contribText: "Bijdragen zijn welkom! Open een issue of dien een pull request in.", licenseText: (l) => `Dit project is gelicenseerd onder de ${l} Licentie.`, defaultDesc: "Een korte beschrijving van het project.", defaultFeatures: ["Gemakkelijk te gebruiken", "Goed gedocumenteerd", "Zeer configureerbaar"] } },
-  tr: { name: "Turkish (Türkçe)", direction: "ltr", s: { overview: "Genel Bakış", features: "Özellikler", tech: "Kullanılan Teknolojiler", install: "Kurulum", usage: "Kullanım", contrib: "Katkıda Bulunma", license: "Lisans", contribText: "Katkılarınızı bekliyoruz! Lütfen bir issue açın veya pull request gönderin.", licenseText: (l) => `Bu proje ${l} Lisansı kapsamında lisanslanmıştır.`, defaultDesc: "Projenin kısa bir açıklaması.", defaultFeatures: ["Kullanımı kolay", "İyi belgelenmiş", "Yüksek düzeyde yapılandırılabilir"] } },
-  pl: { name: "Polish (Polski)", direction: "ltr", s: { overview: "Przegląd", features: "Funkcje", tech: "Użyte Technologie", install: "Instalacja", usage: "Użycie", contrib: "Wkład", license: "Licencja", contribText: "Wkłady są mile widziane! Otwórz issue lub wyślij pull request.", licenseText: (l) => `Ten projekt jest objęty licencją ${l}.`, defaultDesc: "Krótki opis projektu.", defaultFeatures: ["Łatwy w użyciu", "Dobrze udokumentowany", "Wysoko konfigurowalny"] } },
+const OUTPUT_DIR = path.join(__dirname, "output");
+if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+
+// ═══════════════════════════════════════════════════════════════════
+//  PROGRAMMING LANGUAGES
+// ═══════════════════════════════════════════════════════════════════
+const PROG_LANGS = {
+  python:     { label:"Python",        ext:".py",     install:"pip install -r requirements.txt", run:"python main.py",      test:"pytest",          color:"3776AB", logo:"python",     sample:"print(\"Hello, World!\")" },
+  javascript: { label:"JavaScript",    ext:".js",     install:"npm install",                      run:"node index.js",        test:"npm test",        color:"F7DF1E", logo:"javascript", sample:"console.log(\"Hello, World!\");" },
+  typescript: { label:"TypeScript",    ext:".ts",     install:"npm install",                      run:"npx ts-node index.ts", test:"npm test",        color:"3178C6", logo:"typescript", sample:"const greet = (name: string): string => `Hello, ${name}!`;\nconsole.log(greet(\"World\"));" },
+  java:       { label:"Java",          ext:".java",   install:"mvn install",                      run:"java -jar app.jar",    test:"mvn test",        color:"ED8B00", logo:"java",       sample:"System.out.println(\"Hello, World!\");" },
+  go:         { label:"Go",            ext:".go",     install:"go mod download",                  run:"go run main.go",       test:"go test ./...",   color:"00ADD8", logo:"go",         sample:"fmt.Println(\"Hello, World!\")" },
+  rust:       { label:"Rust",          ext:".rs",     install:"cargo build",                      run:"cargo run",            test:"cargo test",      color:"000000", logo:"rust",       sample:"println!(\"Hello, World!\");" },
+  ruby:       { label:"Ruby",          ext:".rb",     install:"bundle install",                   run:"ruby main.rb",         test:"bundle exec rspec",color:"CC342D",logo:"ruby",       sample:"puts \"Hello, World!\"" },
+  php:        { label:"PHP",           ext:".php",    install:"composer install",                 run:"php index.php",        test:"phpunit",         color:"777BB4", logo:"php",        sample:"echo \"Hello, World!\\n\";" },
+  csharp:     { label:"C#",            ext:".cs",     install:"dotnet restore",                   run:"dotnet run",           test:"dotnet test",     color:"239120", logo:"csharp",     sample:"Console.WriteLine(\"Hello, World!\");" },
+  cpp:        { label:"C++",           ext:".cpp",    install:"cmake .. && make",                 run:"./app",               test:"ctest",            color:"00599C", logo:"cplusplus",  sample:"std::cout << \"Hello, World!\" << std::endl;" },
+  kotlin:     { label:"Kotlin",        ext:".kt",     install:"gradle build",                     run:"gradle run",           test:"gradle test",     color:"7F52FF", logo:"kotlin",     sample:"println(\"Hello, World!\")" },
+  swift:      { label:"Swift",         ext:".swift",  install:"swift package resolve",            run:"swift run",            test:"swift test",      color:"FA7343", logo:"swift",      sample:"print(\"Hello, World!\")" },
+  dart:       { label:"Dart",          ext:".dart",   install:"dart pub get",                     run:"dart run main.dart",   test:"dart test",       color:"0175C2", logo:"dart",       sample:"print('Hello, World!');" },
+  scala:      { label:"Scala",         ext:".scala",  install:"sbt update",                       run:"sbt run",              test:"sbt test",        color:"DC322F", logo:"scala",      sample:"println(\"Hello, World!\")" },
+  r:          { label:"R",             ext:".r",      install:"Rscript install.R",                run:"Rscript main.R",       test:"testthat::test_dir('tests')", color:"276DC3", logo:"r", sample:"cat(\"Hello, World!\\n\")" },
+  elixir:     { label:"Elixir",        ext:".ex",     install:"mix deps.get",                     run:"mix run",              test:"mix test",        color:"4B275F", logo:"elixir",     sample:"IO.puts \"Hello, World!\"" },
+  haskell:    { label:"Haskell",       ext:".hs",     install:"cabal install",                    run:"cabal run",            test:"cabal test",      color:"5D4F85", logo:"haskell",     sample:"main = putStrLn \"Hello, World!\"" },
+  lua:        { label:"Lua",           ext:".lua",    install:"luarocks install dependencies",    run:"lua main.lua",         test:"busted",          color:"000080", logo:"lua",        sample:"print(\"Hello, World!\")" },
 };
 
-function normalizeArray(val) {
-  if (!val) return null;
-  if (Array.isArray(val)) return val.filter(Boolean);
-  return String(val).split(",").map((v) => v.trim()).filter(Boolean);
+function buildProgReadme(opts) {
+  const { projectName, language, description, author="your-username", license="MIT",
+          features=[], prerequisites=[], envVars=[], githubUser="your-username",
+          repoName, includeContributing=true, includeChangelog=false } = opts;
+  const cfg = PROG_LANGS[language];
+  const repo = repoName || projectName.toLowerCase().replace(/\s+/g,"-");
+  const featureList = features.length
+    ? features.map(f=>`- ${f}`).join("\n")
+    : `- Core ${cfg.label} functionality\n- Easy to extend and configure\n- Comprehensive test coverage`;
+  const prereqList = prerequisites.length
+    ? prerequisites.map(p=>`- ${p}`).join("\n")
+    : `- ${cfg.label} installed\n- Git`;
+  const envBlock = envVars.length
+    ? `\n## Environment Variables\n\nCreate a \`.env\` file:\n\n\`\`\`env\n${envVars.map(e=>`${e}=value`).join("\n")}\n\`\`\`\n`
+    : "";
+  const contribBlock = includeContributing ? `
+## Contributing
+
+1. Fork the repo
+2. Create your feature branch (\`git checkout -b feature/my-feature\`)
+3. Commit your changes (\`git commit -m 'Add my feature'\`)
+4. Push to the branch (\`git push origin feature/my-feature\`)
+5. Open a Pull Request
+` : "";
+  const changelogBlock = includeChangelog ? `
+## Changelog
+
+### [1.0.0] - ${new Date().toISOString().split("T")[0]}
+- Initial release
+` : "";
+
+  return `# ${projectName}
+
+![${cfg.label}](https://img.shields.io/badge/${cfg.label.replace(/ /g,"_")}-${cfg.color}?style=for-the-badge&logo=${cfg.logo}&logoColor=white)
+![License](https://img.shields.io/badge/License-${license}-green?style=for-the-badge)
+
+> ${description || `A ${cfg.label} project.`}
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Project Structure](#project-structure)${envVars.length?"\n- [Environment Variables](#environment-variables)":""}${includeContributing?"\n- [Contributing](#contributing)":""}${includeChangelog?"\n- [Changelog](#changelog)":""}
+- [License](#license)
+
+---
+
+## Features
+
+${featureList}
+
+---
+
+## Prerequisites
+
+${prereqList}
+
+---
+
+## Installation
+
+\`\`\`bash
+git clone https://github.com/${githubUser}/${repo}.git
+cd ${repo}
+${cfg.install}
+\`\`\`
+${envBlock}
+---
+
+## Usage
+
+\`\`\`bash
+# Run the project
+${cfg.run}
+
+# Run tests
+${cfg.test}
+\`\`\`
+
+### Example
+
+\`\`\`${language === "csharp" ? "csharp" : language}
+${cfg.sample}
+\`\`\`
+
+---
+
+## Project Structure
+
+\`\`\`
+${repo}/
+├── src/
+│   └── main${cfg.ext}
+├── tests/
+│   └── test_main${cfg.ext}
+└── README.md
+\`\`\`
+
+---
+${contribBlock}${changelogBlock}
+## License
+
+This project is licensed under the **${license} License** — see [LICENSE](LICENSE) for details.
+
+---
+
+*Made with ❤️ by [${author}](https://github.com/${githubUser})*
+`;
 }
 
-function buildReadme(langCode, p) {
-  const { s } = LANGUAGES[langCode];
-  const slug = (p.name || "my-project").toLowerCase().replace(/\s+/g, "-");
-  const repo = p.repoUrl || `https://github.com/your-username/${slug}`;
-  const license = p.license || "MIT";
-  const features = normalizeArray(p.features) || s.defaultFeatures;
-  const techStack = normalizeArray(p.techStack) || [];
-  const description = p.description || s.defaultDesc;
-  const techSection = techStack.length ? `## ${s.tech}\n\n${techStack.map((t) => `- ${t}`).join("\n")}\n\n` : "";
+// ═══════════════════════════════════════════════════════════════════
+//  SPOKEN LANGUAGES
+// ═══════════════════════════════════════════════════════════════════
+const SPOKEN_LANGS = {
+  en: { name:"English",                dir:"ltr", s:{ title:"Overview", features:"Features", install:"Installation", usage:"Usage", contrib:"Contributing", license:"License", contribText:"Contributions are welcome! Please open an issue or submit a pull request.", licenseText:l=>`This project is licensed under the ${l} License.` } },
+  es: { name:"Spanish (Español)",      dir:"ltr", s:{ title:"Descripción", features:"Características", install:"Instalación", usage:"Uso", contrib:"Contribuciones", license:"Licencia", contribText:"¡Las contribuciones son bienvenidas! Abre un issue o envía un pull request.", licenseText:l=>`Este proyecto está bajo la Licencia ${l}.` } },
+  fr: { name:"French (Français)",      dir:"ltr", s:{ title:"Présentation", features:"Fonctionnalités", install:"Installation", usage:"Utilisation", contrib:"Contributions", license:"Licence", contribText:"Les contributions sont les bienvenues !", licenseText:l=>`Ce projet est sous licence ${l}.` } },
+  de: { name:"German (Deutsch)",       dir:"ltr", s:{ title:"Übersicht", features:"Funktionen", install:"Installation", usage:"Verwendung", contrib:"Mitwirken", license:"Lizenz", contribText:"Beiträge sind willkommen!", licenseText:l=>`Dieses Projekt steht unter der ${l}-Lizenz.` } },
+  zh: { name:"Chinese Simplified (中文)",dir:"ltr",s:{ title:"概述", features:"功能", install:"安装", usage:"使用", contrib:"贡献", license:"许可证", contribText:"欢迎贡献！", licenseText:l=>`本项目基于 ${l} 许可证。` } },
+  ja: { name:"Japanese (日本語)",       dir:"ltr", s:{ title:"概要", features:"機能", install:"インストール", usage:"使い方", contrib:"コントリビューション", license:"ライセンス", contribText:"コントリビューションを歓迎します！", licenseText:l=>`このプロジェクトは ${l} ライセンスです。` } },
+  ko: { name:"Korean (한국어)",          dir:"ltr", s:{ title:"개요", features:"기능", install:"설치", usage:"사용법", contrib:"기여", license:"라이선스", contribText:"기여를 환영합니다!", licenseText:l=>`이 프로젝트는 ${l} 라이선스입니다.` } },
+  pt: { name:"Portuguese (Português)", dir:"ltr", s:{ title:"Visão Geral", features:"Funcionalidades", install:"Instalação", usage:"Uso", contrib:"Contribuindo", license:"Licença", contribText:"Contribuições são bem-vindas!", licenseText:l=>`Este projeto está sob a licença ${l}.` } },
+  hi: { name:"Hindi (हिंदी)",            dir:"ltr", s:{ title:"अवलोकन", features:"विशेषताएं", install:"इंस्टॉलेशन", usage:"उपयोग", contrib:"योगदान", license:"लाइसेंस", contribText:"योगदान का स्वागत है!", licenseText:l=>`यह प्रोजेक्ट ${l} लाइसेंस के तहत है।` } },
+  ar: { name:"Arabic (العربية)",        dir:"rtl", s:{ title:"نظرة عامة", features:"الميزات", install:"التثبيت", usage:"الاستخدام", contrib:"المساهمة", license:"الترخيص", contribText:"المساهمات مرحب بها!", licenseText:l=>`هذا المشروع مرخص بموجب ${l}.` } },
+  ru: { name:"Russian (Русский)",       dir:"ltr", s:{ title:"Обзор", features:"Функции", install:"Установка", usage:"Использование", contrib:"Вклад", license:"Лицензия", contribText:"Мы рады вкладу!", licenseText:l=>`Проект лицензирован под ${l}.` } },
+  it: { name:"Italian (Italiano)",     dir:"ltr", s:{ title:"Panoramica", features:"Funzionalità", install:"Installazione", usage:"Utilizzo", contrib:"Contribuire", license:"Licenza", contribText:"I contributi sono benvenuti!", licenseText:l=>`Questo progetto è sotto licenza ${l}.` } },
+  nl: { name:"Dutch (Nederlands)",     dir:"ltr", s:{ title:"Overzicht", features:"Functies", install:"Installatie", usage:"Gebruik", contrib:"Bijdragen", license:"Licentie", contribText:"Bijdragen zijn welkom!", licenseText:l=>`Dit project valt onder de ${l}-licentie.` } },
+  tr: { name:"Turkish (Türkçe)",        dir:"ltr", s:{ title:"Genel Bakış", features:"Özellikler", install:"Kurulum", usage:"Kullanım", contrib:"Katkı", license:"Lisans", contribText:"Katkılar memnuniyetle karşılanır!", licenseText:l=>`Bu proje ${l} lisansı altındadır.` } },
+  pl: { name:"Polish (Polski)",         dir:"ltr", s:{ title:"Przegląd", features:"Funkcje", install:"Instalacja", usage:"Użycie", contrib:"Współpraca", license:"Licencja", contribText:"Wkład jest mile widziany!", licenseText:l=>`Ten projekt jest objęty licencją ${l}.` } },
+};
 
-  return `# ${p.name}\n\n## ${s.overview}\n\n${description}\n\n## ${s.features}\n\n${features.map((f) => `- ${f}`).join("\n")}\n\n${techSection}## ${s.install}\n\n\`\`\`bash\ngit clone ${repo}\ncd ${slug}\nnpm install\n\`\`\`\n\n## ${s.usage}\n\n\`\`\`bash\nnpm start\n\`\`\`\n\n## ${s.contrib}\n\n${s.contribText}\n\n## ${s.license}\n\n${s.licenseText(license)}\n`;
+function buildSpokenReadme(opts, langCode) {
+  const { projectName, description="A great project.", license="MIT",
+          features=[], author="your-username", runCmd="npm start" } = opts;
+  const L = SPOKEN_LANGS[langCode].s;
+  const featureList = features.length
+    ? features.map(f=>`- ${f}`).join("\n")
+    : `- Feature one\n- Feature two\n- Feature three`;
+  return `# ${projectName}
+
+> ${description}
+
+## ${L.title}
+
+${description}
+
+## ${L.features}
+
+${featureList}
+
+## ${L.install}
+
+\`\`\`bash
+git clone <repo-url>
+cd ${projectName.toLowerCase().replace(/\s+/g,"-")}
+npm install
+\`\`\`
+
+## ${L.usage}
+
+\`\`\`bash
+${runCmd}
+\`\`\`
+
+## ${L.contrib}
+
+${L.contribText}
+
+## ${L.license}
+
+${L.licenseText(license)}
+`;
 }
 
-function langFilename(code) {
-  return code === "en" ? "README.md" : `README.${code}.md`;
-}
+// ═══════════════════════════════════════════════════════════════════
+//  ROUTES
+// ═══════════════════════════════════════════════════════════════════
 
-// ── Routes ────────────────────────────────────────────────────────────────────
-
-app.get("/", (req, res) =>
+// Root — API index
+app.get("/", (req, res) => {
   res.json({
-    status: "ok",
-    message: "README Generator API",
-    version: "2.0.0",
-    endpoints: [
-      "GET    /api/readme/languages",
-      "POST   /api/readme/generate",
-      "POST   /api/readme/generate/bulk",
-      "POST   /api/readme/generate/all",
-      "GET    /api/readme/generate/:languageCode",
-      "DELETE /api/readme/:language   — delete a specific language README file",
-      "DELETE /api/readme/bulk        — delete multiple README files (body: { languages: [...] })",
-      "DELETE /api/readme/all         — delete all README files",
-    ],
-  })
-);
-
-app.get("/api/readme/languages", (req, res) => {
-  res.json({
-    count: Object.keys(LANGUAGES).length,
-    languages: Object.entries(LANGUAGES).map(([code, l]) => ({
-      code, name: l.name, direction: l.direction,
-    })),
+    name: "README Generator API",
+    version: "4.0.0",
+    description: "Generate professional README files for any programming language or in any spoken language.",
+    routes: {
+      "GET  /languages/programming": "List all supported programming languages (18 total)",
+      "GET  /languages/spoken":      "List all supported spoken languages (15 total)",
+      "POST /generate/programming":  "Generate README for a programming language",
+      "POST /generate/spoken":       "Generate README in a spoken language",
+      "GET  /generate/programming?language=python&projectName=MyApp": "Quick GET for programming lang README",
+      "GET  /generate/spoken?language=es&projectName=MyApp": "Quick GET for spoken lang README",
+      "POST /generate/bulk":         "Generate README in multiple spoken languages at once",
+      "POST /generate/all-spoken":   "Generate README in all 15 spoken languages",
+    },
+    supportedProgrammingLanguages: Object.keys(PROG_LANGS),
+    supportedSpokenLanguages: Object.keys(SPOKEN_LANGS),
   });
 });
 
-app.post("/api/readme/generate", (req, res) => {
-  const { language = "en", name, description, features, techStack, repoUrl = "", license = "MIT", format = "json" } = req.body;
-  if (!name?.trim()) return res.status(400).json({ success: false, error: 'Missing required field: "name"' });
-  if (!description?.trim()) return res.status(400).json({ success: false, error: 'Missing required field: "description"' });
-  const langCode = language.toLowerCase().trim();
-  if (!LANGUAGES[langCode]) return res.status(404).json({ success: false, error: `Language "${langCode}" is not supported.`, supportedCodes: Object.keys(LANGUAGES) });
-  const content = buildReadme(langCode, { name: name.trim(), description: description.trim(), features, techStack, repoUrl, license });
-  const filename = langFilename(langCode);
-  if (format === "raw") return res.setHeader("Content-Type", "text/markdown; charset=utf-8").setHeader("Content-Disposition", `attachment; filename="${filename}"`).send(content);
-  return res.status(201).json({ success: true, language: { code: langCode, name: LANGUAGES[langCode].name, direction: LANGUAGES[langCode].direction }, filename, content, characterCount: content.length, lineCount: content.split("\n").length });
+// List programming languages
+app.get("/languages/programming", (req, res) => {
+  const list = Object.entries(PROG_LANGS).map(([id, c]) => ({
+    id, label: c.label, extension: c.ext, runCommand: c.run, testCommand: c.test,
+  }));
+  res.json({ success:true, count:list.length, languages:list });
 });
 
-app.post("/api/readme/generate/bulk", (req, res) => {
-  const { languages, name, description, features, techStack, repoUrl = "", license = "MIT" } = req.body;
-  if (!name?.trim()) return res.status(400).json({ success: false, error: 'Missing required field: "name"' });
-  if (!description?.trim()) return res.status(400).json({ success: false, error: 'Missing required field: "description"' });
-  if (!Array.isArray(languages) || languages.length === 0) return res.status(400).json({ success: false, error: '"languages" must be a non-empty array', supportedCodes: Object.keys(LANGUAGES) });
-  const params = { name: name.trim(), description: description.trim(), features, techStack, repoUrl, license };
-  const results = [], errors = [];
-  for (const lang of languages) {
-    const code = lang.toLowerCase().trim();
-    if (!LANGUAGES[code]) { errors.push({ language: lang, error: `Unsupported code: "${lang}"` }); continue; }
-    const content = buildReadme(code, params);
-    results.push({ language: { code, name: LANGUAGES[code].name, direction: LANGUAGES[code].direction }, filename: langFilename(code), content, characterCount: content.length, lineCount: content.split("\n").length });
+// List spoken languages
+app.get("/languages/spoken", (req, res) => {
+  const list = Object.entries(SPOKEN_LANGS).map(([code, c]) => ({
+    code, name:c.name, direction:c.dir,
+  }));
+  res.json({ success:true, count:list.length, languages:list });
+});
+
+// POST /generate/programming
+app.post("/generate/programming", (req, res) => {
+  const { language, projectName, save=false, ...rest } = req.body;
+  if (!projectName) return res.status(400).json({ success:false, error:"`projectName` is required." });
+  if (!language)    return res.status(400).json({ success:false, error:"`language` is required." });
+  const lang = language.toLowerCase();
+  if (!PROG_LANGS[lang]) return res.status(400).json({ success:false, error:`Unknown programming language "${language}". Supported: ${Object.keys(PROG_LANGS).join(", ")}` });
+  const readme = buildProgReadme({ language:lang, projectName, ...rest });
+  if (save) {
+    const fname = `${projectName.replace(/\s+/g,"-")}_${lang}_README.md`;
+    fs.writeFileSync(path.join(OUTPUT_DIR, fname), readme);
   }
-  return res.status(201).json({ success: true, requested: languages.length, generated: results.length, failed: errors.length, results, ...(errors.length && { errors }) });
+  res.json({ success:true, language:PROG_LANGS[lang].label, projectName, charCount:readme.length, lineCount:readme.split("\n").length, readme });
 });
 
-app.post("/api/readme/generate/all", (req, res) => {
-  const { name, description, features, techStack, repoUrl = "", license = "MIT" } = req.body;
-  if (!name?.trim()) return res.status(400).json({ success: false, error: 'Missing required field: "name"' });
-  if (!description?.trim()) return res.status(400).json({ success: false, error: 'Missing required field: "description"' });
-  const params = { name: name.trim(), description: description.trim(), features, techStack, repoUrl, license };
-  const readmes = Object.keys(LANGUAGES).map((code) => {
-    const content = buildReadme(code, params);
-    return { language: { code, name: LANGUAGES[code].name, direction: LANGUAGES[code].direction }, filename: langFilename(code), content, characterCount: content.length, lineCount: content.split("\n").length };
+// POST /generate/spoken
+app.post("/generate/spoken", (req, res) => {
+  const { language, projectName, save=false, ...rest } = req.body;
+  if (!projectName) return res.status(400).json({ success:false, error:"`projectName` is required." });
+  if (!language)    return res.status(400).json({ success:false, error:"`language` is required." });
+  const lang = language.toLowerCase();
+  if (!SPOKEN_LANGS[lang]) return res.status(400).json({ success:false, error:`Unknown spoken language "${language}". Supported: ${Object.keys(SPOKEN_LANGS).join(", ")}` });
+  const readme = buildSpokenReadme({ projectName, ...rest }, lang);
+  if (save) {
+    const fname = `${projectName.replace(/\s+/g,"-")}_${lang}_README.md`;
+    fs.writeFileSync(path.join(OUTPUT_DIR, fname), readme);
+  }
+  res.json({ success:true, language:SPOKEN_LANGS[lang].name, languageCode:lang, projectName, charCount:readme.length, lineCount:readme.split("\n").length, readme });
+});
+
+// GET /generate/programming (quick)
+app.get("/generate/programming", (req, res) => {
+  const { language="python", projectName="MyProject", description, author, license, githubUser, raw } = req.query;
+  const lang = language.toLowerCase();
+  if (!PROG_LANGS[lang]) return res.status(400).json({ success:false, error:`Unknown programming language "${language}".` });
+  const readme = buildProgReadme({ language:lang, projectName, description, author, license, githubUser });
+  if (raw === "1" || raw === "true") return res.type("text/plain").send(readme);
+  res.json({ success:true, language:PROG_LANGS[lang].label, projectName, readme });
+});
+
+// GET /generate/spoken (quick)
+app.get("/generate/spoken", (req, res) => {
+  const { language="en", projectName="MyProject", description, license, author, runCmd, raw } = req.query;
+  const lang = language.toLowerCase();
+  if (!SPOKEN_LANGS[lang]) return res.status(400).json({ success:false, error:`Unknown spoken language "${language}".` });
+  const readme = buildSpokenReadme({ projectName, description, license, author, runCmd }, lang);
+  if (raw === "1" || raw === "true") return res.type("text/plain").send(readme);
+  res.json({ success:true, language:SPOKEN_LANGS[lang].name, projectName, readme });
+});
+
+// POST /generate/bulk — spoken language bulk
+app.post("/generate/bulk", (req, res) => {
+  const { languages=[], projectName, save=false, ...rest } = req.body;
+  if (!projectName) return res.status(400).json({ success:false, error:"`projectName` is required." });
+  if (!languages.length) return res.status(400).json({ success:false, error:"`languages` array is required." });
+  const results = {};
+  const errors = [];
+  languages.forEach(lang => {
+    const code = lang.toLowerCase();
+    if (!SPOKEN_LANGS[code]) { errors.push(`Unknown language: ${lang}`); return; }
+    const readme = buildSpokenReadme({ projectName, ...rest }, code);
+    if (save) {
+      const fname = `${projectName.replace(/\s+/g,"-")}_${code}_README.md`;
+      fs.writeFileSync(path.join(OUTPUT_DIR, fname), readme);
+    }
+    results[code] = { language:SPOKEN_LANGS[code].name, readme, charCount:readme.length };
   });
-  return res.status(201).json({ success: true, count: readmes.length, readmes });
+  res.json({ success:true, projectName, generated:Object.keys(results).length, errors, results });
 });
 
-app.get("/api/readme/generate/:language", (req, res) => {
-  const langCode = req.params.language.toLowerCase().trim();
-  if (!LANGUAGES[langCode]) return res.status(404).json({ success: false, error: `Language "${langCode}" not supported.`, supportedCodes: Object.keys(LANGUAGES) });
-  const name = req.query.name || "My Project";
-  const description = req.query.description || LANGUAGES[langCode].s.defaultDesc;
-  const features = req.query.features ? req.query.features.split(",") : null;
-  const techStack = req.query.techStack ? req.query.techStack.split(",") : null;
-  const repoUrl = req.query.repoUrl || "";
-  const license = req.query.license || "MIT";
-  const content = buildReadme(langCode, { name, description, features, techStack, repoUrl, license });
-  return res.setHeader("Content-Type", "text/markdown; charset=utf-8").setHeader("Content-Disposition", `attachment; filename="${langFilename(langCode)}"`).send(content);
+// POST /generate/all-spoken
+app.post("/generate/all-spoken", (req, res) => {
+  const { projectName, save=false, ...rest } = req.body;
+  if (!projectName) return res.status(400).json({ success:false, error:"`projectName` is required." });
+  const results = {};
+  Object.keys(SPOKEN_LANGS).forEach(code => {
+    const readme = buildSpokenReadme({ projectName, ...rest }, code);
+    if (save) {
+      const fname = `${projectName.replace(/\s+/g,"-")}_${code}_README.md`;
+      fs.writeFileSync(path.join(OUTPUT_DIR, fname), readme);
+    }
+    results[code] = { language:SPOKEN_LANGS[code].name, readme, charCount:readme.length };
+  });
+  res.json({ success:true, projectName, generated:Object.keys(results).length, results });
 });
 
-// ── DELETE /api/readme/all  — delete ALL README files ────────────────────────
-app.delete("/api/readme/all", (req, res) => {
-  const deleted = [], notFound = [];
-  for (const code of Object.keys(LANGUAGES)) {
-    const filename = langFilename(code);
-    const filePath = path.join(README_DIR, filename);
-    if (!fs.existsSync(filePath)) { notFound.push({ language: code, filename }); continue; }
-    fs.unlinkSync(filePath);
-    deleted.push({ language: { code, name: LANGUAGES[code].name }, filename, deletedAt: new Date().toISOString() });
-  }
-  res.json({ success: true, totalLanguages: Object.keys(LANGUAGES).length, deleted: deleted.length, notFound: notFound.length, results: deleted, ...(notFound.length && { notFoundFiles: notFound }) });
+// ─── Start ─────────────────────────────────────────────────────────
+const PORT = 3456;
+app.listen(PORT, () => {
+  console.log(`README Generator API v4.0.0 running on http://localhost:${PORT}`);
 });
-
-// ── DELETE /api/readme/bulk  — delete READMEs for multiple languages ──────────
-// Body: { languages: ["en","es","fr"] }
-app.delete("/api/readme/bulk", (req, res) => {
-  const { languages } = req.body;
-  if (!Array.isArray(languages) || languages.length === 0)
-    return res.status(400).json({ success: false, error: '"languages" must be a non-empty array of language codes.', example: { languages: ["en", "es", "fr"] }, supportedCodes: Object.keys(LANGUAGES) });
-  const deleted = [], notFound = [], unsupported = [];
-  for (const lang of languages) {
-    const code = lang.toLowerCase().trim();
-    if (!LANGUAGES[code]) { unsupported.push({ language: lang, error: `Unsupported code: "${lang}"` }); continue; }
-    const filename = langFilename(code);
-    const filePath = path.join(README_DIR, filename);
-    if (!fs.existsSync(filePath)) { notFound.push({ language: code, filename, error: "File not found." }); continue; }
-    fs.unlinkSync(filePath);
-    deleted.push({ language: { code, name: LANGUAGES[code].name }, filename, deletedAt: new Date().toISOString() });
-  }
-  res.json({ success: true, requested: languages.length, deleted: deleted.length, notFound: notFound.length, unsupported: unsupported.length, results: deleted, ...(notFound.length && { notFoundFiles: notFound }), ...(unsupported.length && { unsupportedLanguages: unsupported }) });
-});
-
-// ── DELETE /api/readme/:language  — delete a specific language README ─────────
-app.delete("/api/readme/:language", (req, res) => {
-  const code = req.params.language.toLowerCase().trim();
-  if (!LANGUAGES[code]) return res.status(404).json({ success: false, error: `Language "${code}" is not supported.`, supportedCodes: Object.keys(LANGUAGES) });
-  const filename = langFilename(code);
-  const filePath = path.join(README_DIR, filename);
-  if (!fs.existsSync(filePath)) return res.status(404).json({ success: false, error: `README file "${filename}" does not exist on disk.`, filename, language: { code, name: LANGUAGES[code].name } });
-  fs.unlinkSync(filePath);
-  res.json({ success: true, message: `README file "${filename}" has been deleted.`, filename, language: { code, name: LANGUAGES[code].name }, deletedAt: new Date().toISOString() });
-});
-
-app.use((req, res) => {
-  res.status(404).json({ success: false, error: "Endpoint not found", availableRoutes: ["GET /", "GET /api/readme/languages", "POST /api/readme/generate", "POST /api/readme/generate/bulk", "POST /api/readme/generate/all", "GET /api/readme/generate/:languageCode", "DELETE /api/readme/:language", "DELETE /api/readme/bulk", "DELETE /api/readme/all"] });
-});
-
-const PORT = process.env.PORT || 3456;
-app.listen(PORT, () => console.log(`README API running on http://localhost:${PORT}`));
