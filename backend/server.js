@@ -5,6 +5,7 @@ import { fileURLToPath } from "url";
 import { connectDB } from "./config/db.js";
 import ProductRoutes from "./routes/product.route.js";
 import ReadmeRoutes from "./routes/readme.route.js";
+import ReadmeProgRoutes from "./routes/readme.js";
 
 dotenv.config();
 
@@ -15,7 +16,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 app.use("/api/products", ProductRoutes);
+// Spoken-language README generation (en, es, fr, de, zh, ja, ko, pt, hi, ar, ru, it, nl, tr, pl)
 app.use("/api/readme", ReadmeRoutes);
+// Programming-language README generation (javascript, python, go, rust, java, …)
+app.use("/api/readme/prog", ReadmeProgRoutes);
 
 if (process.env.NODE_ENV !== "production") {
   app.get("/", (req, res) => res.send("Server is ready!"));
