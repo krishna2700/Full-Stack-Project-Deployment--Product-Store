@@ -1,19 +1,21 @@
 import express from "express";
 import {
-  getLanguages,
+  getSupportedLanguages,
   generateReadme,
-  generateAllReadmes,
+  generateReadmeRaw,
 } from "../controllers/readme.controller.js";
 
 const router = express.Router();
 
-// GET  /api/readme/languages    — list all supported language codes
-router.get("/languages", getLanguages);
+// GET  /api/readme/languages         — list all supported language codes
+router.get("/languages", getSupportedLanguages);
 
-// POST /api/readme/generate     — generate README in a single language
+// POST /api/readme/generate          — generate README (JSON response)
+//   Body: { "language": "es" }
 router.post("/generate", generateReadme);
 
-// POST /api/readme/generate-all — generate READMEs for all languages at once
-router.post("/generate-all", generateAllReadmes);
+// GET  /api/readme/generate/:language — generate README (raw Markdown download)
+//   Example: GET /api/readme/generate/fr
+router.get("/generate/:language", generateReadmeRaw);
 
 export default router;
